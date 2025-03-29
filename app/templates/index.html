@@ -2,36 +2,105 @@
 
 {% block title %}Accueil - WeaRisk{% endblock %}
 
-{% block css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
-{% endblock %}
-
 {% block content %}
 <section class="hero">
-    <h1>Bienvenue sur <strong>WeaRisk</strong></h1>
-    <p>Analyse intelligente des risques climatiques pour vos infrastructures numériques.</p>
-    <a href="/risques" class="btn">Trouver mon département</a>
+    <div class="container">
+        <h1>Bienvenue sur <strong>WeaRisk</strong></h1>
+        <p>Analyse intelligente des risques climatiques pour vos infrastructures numériques</p>
+        <div class="hero-buttons">
+            <a href="/risks" class="btn">Consulter les risques</a>
+            <a href="#features" class="btn btn-outline">En savoir plus</a>
+        </div>
+    </div>
 </section>
 
-<section class="features">
+<section id="features" class="features">
     <div class="feature">
-        <i class="fas fa-cloud-sun-rain fa-2x"></i>
-        <h2>Prévisions météo</h2>
-        <p>Recevez des données météo en temps réel.</p>
+        <i class="fas fa-cloud-sun-rain fa-3x"></i>
+        <h2>Surveillance en temps réel</h2>
+        <p>Données météorologiques actualisées toutes les 1 heures pour une analyse précise des risques.</p>
     </div>
     <div class="feature">
-        <i class="fas fa-exclamation-triangle fa-2x"></i>
-        <h2>Alertes intelligentes</h2>
-        <p>Soyez averti des événements extrêmes à venir.</p>
+        <i class="fas fa-exclamation-triangle fa-3x"></i>
+        <h2>Alertes personnalisées</h2>
+        <p>Configurations d'alertes adaptées à vos seuils de tolérance spécifiques.</p>
     </div>
     <div class="feature">
-        <i class="fas fa-shield-alt fa-2x"></i>
-        <h2>Analyse de risque</h2>
-        <p>Évaluez l’impact climatique sur vos systèmes IT.</p>
+        <i class="fas fa-shield-alt fa-3x"></i>
+        <h2>Protection proactive</h2>
+        <p>Recommandations actionnables pour sécuriser vos infrastructures avant les événements climatiques.</p>
+    </div>
+</section>
+
+<section class="stats">
+    <div class="container">
+        <h2>WeaRisk en chiffres</h2>
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-number">101</div>
+                <div class="stat-label">Départements couverts</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">24/7</div>
+                <div class="stat-label">Surveillance continue</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">1h</div>
+                <div class="stat-label">Actualisation des données</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Types de risques analysés</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="testimonials">
+    <div class="container">
+        <h2>Témoignages</h2>
+        <div class="testimonial">
+            <p>"WeaRisk nous a permis d'anticiper une tempête qui aurait pu endommager notre data center. Un outil indispensable !"</p>
+            <p class="author">- Marc D., Responsable Infrastructure</p>
+        </div>
+        <div class="testimonial">
+            <p>"La précision des alertes nous fait gagner un temps précieux dans la protection de nos équipements extérieurs."</p>
+            <p class="author">- Sophie T., DSI</p>
+        </div>
+    </div>
+</section>
+
+<section class="cta">
+    <div class="container">
+        <h2>Prêt à sécuriser vos infrastructures ?</h2>
+        <p>Découvrez les risques climatiques dans votre région dès maintenant</p>
+        <a href="/risks" class="btn">Démarrer l'analyse</a>
     </div>
 </section>
 {% endblock %}
 
 {% block js %}
 <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+<script>
+    // Animation simple au scroll
+    document.addEventListener('DOMContentLoaded', function() {
+        const features = document.querySelectorAll('.feature');
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        features.forEach(feature => {
+            feature.style.opacity = 0;
+            feature.style.transform = 'translateY(20px)';
+            feature.style.transition = 'all 0.6s ease-out';
+            observer.observe(feature);
+        });
+    });
+</script>
 {% endblock %}

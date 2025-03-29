@@ -1,0 +1,52 @@
+{% if risques %}
+<table class="risk-table">
+    <thead>
+        <tr>
+            <th>Département</th>
+            <th>Heure</th>
+            <th>⚡ Électrique</th>
+            <th>🌊 Inondation</th>
+            <th>🔥 Chaleur</th>
+            <th>🌬️ Vent</th>
+            <th>📊 Global</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in risques %}
+        <tr>
+            <td>{{ row.department_name }}</td>
+            <td>{{ row.timestamp | format_datetime }}</td>
+            <td>
+                <span class="risk-level {% if row.electrical_risk > 70 %}high{% elif row.electrical_risk > 30 %}medium{% else %}low{% endif %}">
+                    {{ "%.1f"|format(row.electrical_risk) }}%
+                </span>
+            </td>
+            <td>
+                <span class="risk-level {% if row.flood_risk > 70 %}high{% elif row.flood_risk > 30 %}medium{% else %}low{% endif %}">
+                    {{ "%.1f"|format(row.flood_risk) }}%
+                </span>
+            </td>
+            <td>
+                <span class="risk-level {% if row.heat_risk > 70 %}high{% elif row.heat_risk > 30 %}medium{% else %}low{% endif %}">
+                    {{ "%.1f"|format(row.heat_risk) }}%
+                </span>
+            </td>
+            <td>
+                <span class="risk-level {% if row.wind_risk > 70 %}high{% elif row.wind_risk > 30 %}medium{% else %}low{% endif %}">
+                    {{ "%.1f"|format(row.wind_risk) }}%
+                </span>
+            </td>
+            <td>
+                <span class="risk-level {% if row.overall_risk > 70 %}high{% elif row.overall_risk > 30 %}medium{% else %}low{% endif %}">
+                    {{ "%.1f"|format(row.overall_risk) }}%
+                </span>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="no-results">
+    <p>Aucun risque climatique trouvé pour ce département.</p>
+</div>
+{% endif %}

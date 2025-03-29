@@ -1,0 +1,9 @@
+{
+  "weather": {
+    "realtime": true
+  },
+  "server": {
+    "port": 80,
+    "debug": true
+  }
+}

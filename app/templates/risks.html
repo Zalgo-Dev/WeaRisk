@@ -1,0 +1,77 @@
+{% extends 'include/base.html' %}
+
+{% block title %}Risques Climatiques - WeaRisk{% endblock %}
+
+{% block content %}
+<section class="search-section">
+    <div class="container">
+        <div class="search-container">
+            <input type="text" 
+                   class="search-input" 
+                   id="search-input"
+                   placeholder="Rechercher un département..."
+                   value="{{ selected_department }}">
+            
+            <select class="department-select" id="department-select">
+                <option value="">Tous les départements</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>
+                    {{ dept }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <button class="search-btn" id="search-btn">Rechercher</button>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <div class="risk-count" id="risk-count">
+        {{ risques|length }} risques trouvés
+    </div>
+    
+    <div id="risks-results">
+        {% include 'risk_partial.html' %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    const departmentSelect = document.getElementById('department-select');
+    const searchBtn = document.getElementById('search-btn');
+    
+    function updateResults() {
+        const department = searchInput.value || departmentSelect.value;
+        
+        fetch(`/risks?department=${encodeURIComponent(department)}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('risks-results').innerHTML = data.html;
+            document.getElementById('risk-count').textContent = `${data.count} risques trouvés`;
+            
+            // Mettre à jour l'URL sans recharger la page
+            const url = new URL(window.location);
+            url.searchParams.set('department', department);
+            window.history.pushState({}, '', url);
+        });
+    }
+    
+    // Écouteurs d'événements
+    searchBtn.addEventListener('click', updateResults);
+    searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') updateResults();
+    });
+    departmentSelect.addEventListener('change', updateResults);
+    
+    // Recherche initiale si paramètre dans l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('department')) {
+        updateResults();
+    }
+});
+</script>
+{% endblock %}
