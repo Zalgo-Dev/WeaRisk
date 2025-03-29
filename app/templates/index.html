@@ -1,0 +1,37 @@
+{% extends 'include/base.html' %}
+
+{% block title %}Accueil - WeaRisk{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Bienvenue sur <strong>WeaRisk</strong></h1>
+    <p>Analyse intelligente des risques climatiques pour vos infrastructures numériques.</p>
+    <a href="#" class="btn">Trouver mon département</a>
+</section>
+
+<section class="features">
+    <div class="feature">
+        <i class="fas fa-cloud-sun-rain fa-2x"></i>
+        <h2>Prévisions météo</h2>
+        <p>Recevez des données météo en temps réel.</p>
+    </div>
+    <div class="feature">
+        <i class="fas fa-exclamation-triangle fa-2x"></i>
+        <h2>Alertes intelligentes</h2>
+        <p>Soyez averti des événements extrêmes à venir.</p>
+    </div>
+    <div class="feature">
+        <i class="fas fa-shield-alt fa-2x"></i>
+        <h2>Analyse de risque</h2>
+        <p>Évaluez l’impact climatique sur vos systèmes IT.</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block js %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WeaRisk{% endblock %}</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- CSS de base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block css %}{% endblock %}
+</head>
+<body>
+    {% include 'include/navbar.html' %}
+    
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    {% include 'include/footer.html' %}
+    
+    {% block js %}{% endblock %}
+</body>
+</html>
