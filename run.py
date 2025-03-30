@@ -9,8 +9,6 @@ from utils.get_data import batch_collect
 # Configuration
 CONFIG_PATH = 'utils/config.json'
 DB_PATH = os.path.join("utils", "weather_risks.db")
-REFRESH_INTERVAL = 3600  # 1 heures en secondes
-CHECK_INTERVAL = 1800     # 30 minutes en secondes
 
 def load_config():
     """Charge la configuration depuis le fichier JSON"""
@@ -19,7 +17,8 @@ def load_config():
     return {
         'realtime': config.get("weather", {}).get("realtime", False),
         'port': config.get("server", {}).get("port", 5000),
-        'debug': config.get("server", {}).get("debug", False)
+        'debug': config.get("server", {}).get("debug", False),
+        'check_interval': config.get("weather", {}).get("update_check_interval", 1800)
     }
 
 def needs_refresh():
@@ -62,7 +61,7 @@ def main():
             refresh_data()
         
         if config['realtime']:
-            start_background_refresh(CHECK_INTERVAL)
+            start_background_refresh(config['check_interval'])
 
     # Lancer le serveur
     app.run(host='0.0.0.0', port=config['port'], debug=config['debug'])

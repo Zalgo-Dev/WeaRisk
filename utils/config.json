@@ -1,9 +1,11 @@
 {
   "weather": {
-    "realtime": true
+    "realtime": true,
+    "db_update_interval": 3600,
+    "update_check_interval": 600
   },
   "server": {
     "port": 80,
-    "debug": true
+    "debug": false
   }
 }
