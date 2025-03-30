@@ -1,5 +1,22 @@
 /* Fichier: static/css/style.css */
 
+/* ===== Variables CSS ===== */
+:root {
+    --primary-color: #3498db;    /* Bleu principal */
+    --secondary-color: #2c3e50;  /* Bleu foncé/Gris */
+    --accent-color: #e74c3c;     /* Rouge/Orange accent */
+    --light-bg: #f8f9fa;         /* Fond clair */
+    --dark-text: #333;           /* Texte sombre */
+    --light-text: #ffffff;       /* Texte clair */
+    --grey-text: #7f8c8d;        /* Texte gris */
+    --border-color: #ced4da;     /* Couleur de bordure */
+    --shadow-light: rgba(0, 0, 0, 0.1);
+    --shadow-medium: rgba(0, 0, 0, 0.15);
+    --transition-speed: 0.3s;
+    --transition-timing: ease-in-out;
+    --border-radius: 5px;
+}
+
 /* ===== Reset et Base ===== */
 * {
     margin: 0;
@@ -7,11 +24,16 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth; /* Défilement doux pour les ancres */
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
-    color: #333;
-    background-color: #f8f9fa;
+    color: var(--dark-text);
+    background-color: var(--light-bg);
+    overflow-x: hidden; /* Empêche le débordement horizontal */
 }
 
 .container {
@@ -24,17 +46,38 @@ body {
 a {
     text-decoration: none;
     color: inherit;
+    transition: color var(--transition-speed) var(--transition-timing);
+}
+
+/* Section fade-in animation (à appliquer avec JS via Intersection Observer) */
+.section-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.section-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 /* ===== Layout Commun ===== */
 .navbar {
-    background: #2c3e50;
-    color: white;
+    background: var(--secondary-color);
+    color: var(--light-text);
     padding: 1rem 0;
     position: sticky;
     top: 0;
     z-index: 1000;
+    box-shadow: 0 2px 5px var(--shadow-light);
+    transition: background-color var(--transition-speed) var(--transition-timing), box-shadow var(--transition-speed) var(--transition-timing);
 }
+
+/* Optionnel: Effet au scroll si besoin avec JS
+.navbar.scrolled {
+    background: rgba(44, 62, 80, 0.95);
+    box-shadow: 0 4px 10px var(--shadow-medium);
+} */
 
 .navbar .container {
     display: flex;
@@ -43,9 +86,13 @@ a {
 }
 
 .logo {
-    font-size: 1.5rem;
+    font-size: 1.7rem; /* Légèrement plus grand */
     font-weight: bold;
-    color: white;
+    color: var(--light-text);
+    transition: transform var(--transition-speed) var(--transition-timing);
+}
+.logo:hover {
+    transform: scale(1.05); /* Effet subtil au survol */
 }
 
 .nav-links {
@@ -54,285 +101,468 @@ a {
 }
 
 .nav-links li a {
-    color: white;
-    margin-left: 1.5rem;
-    transition: opacity 0.3s;
+    color: var(--light-text);
+    margin-left: 1.8rem; /* Espacement ajusté */
+    font-weight: 500;
+    position: relative;
+    padding-bottom: 5px; /* Espace pour le pseudo-élément */
+    transition: color var(--transition-speed) var(--transition-timing);
+}
+
+.nav-links li a::after { /* Soulignement animé au survol */
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+    transition: width var(--transition-speed) var(--transition-timing);
 }
 
 .nav-links li a:hover {
-    opacity: 0.8;
+    color: var(--primary-color); /* Changement de couleur au survol */
+}
+
+.nav-links li a:hover::after {
+    width: 100%; /* Anime le soulignement */
 }
 
 .footer {
-    background: #2c3e50;
-    color: white;
+    background: var(--secondary-color);
+    color: var(--light-text);
     text-align: center;
-    padding: 1.5rem 0;
-    margin-top: 3rem;
+    padding: 2rem 0; /* Padding augmenté */
+    margin-top: 4rem; /* Marge augmentée */
+    opacity: 0.9;
 }
 
 /* ===== Boutons ===== */
 .btn {
     display: inline-block;
-    background: #e74c3c;
-    color: white;
-    padding: 0.8rem 1.5rem;
-    border-radius: 4px;
+    background: var(--accent-color);
+    color: var(--light-text);
+    padding: 0.9rem 1.8rem; /* Padding ajusté */
+    border-radius: var(--border-radius);
     font-weight: bold;
-    transition: all 0.3s ease;
+    transition: all var(--transition-speed) var(--transition-timing); /* Transition sur toutes les propriétés */
     border: none;
     cursor: pointer;
+    text-transform: uppercase; /* Met en majuscule */
+    letter-spacing: 0.5px; /* Espacement des lettres */
+    box-shadow: 0 3px 5px var(--shadow-light);
 }
 
 .btn:hover {
-    background: #c0392b;
-    transform: translateY(-2px);
+    background: #c0392b; /* Couleur accent plus foncée */
+    transform: translateY(-3px) scale(1.03); /* Effet de "soulèvement" et léger zoom */
+    box-shadow: 0 5px 10px var(--shadow-medium); /* Ombre plus prononcée */
+}
+
+.btn:active { /* Effet au clic */
+    transform: translateY(-1px) scale(1);
+    box-shadow: 0 2px 3px var(--shadow-light);
 }
 
 .btn-outline {
     background: transparent;
-    border: 2px solid white;
+    border: 2px solid var(--light-text);
+    color: var(--light-text); /* Assure que le texte est blanc */
     margin-left: 1rem;
+}
+.btn-outline:hover {
+    background: var(--light-text); /* Fond blanc au survol */
+    color: var(--secondary-color); /* Texte de la couleur du fond initial */
+    border-color: var(--light-text); /* Garde la bordure blanche */
 }
 
 /* ===== Page d'Accueil ===== */
 .hero {
-    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
-    color: white;
-    padding: 6rem 2rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--light-text);
+    padding: 8rem 2rem 6rem; /* Padding ajusté pour plus d'espace */
     text-align: center;
     position: relative;
+    overflow: hidden; /* Pour les effets de fond éventuels */
 }
 
+/* Animation pour les éléments du Hero */
 .hero h1 {
-    font-size: 2.8rem;
+    font-size: 3.2rem; /* Taille augmentée */
     margin-bottom: 1.5rem;
+    animation: fadeInDown 1s ease-out forwards;
+    opacity: 0; /* Commence invisible */
 }
 
 .hero p {
-    font-size: 1.3rem;
+    font-size: 1.4rem; /* Taille augmentée */
     max-width: 800px;
     margin: 0 auto 3rem;
-    opacity: 0.9;
+    opacity: 0; /* Commence invisible */
+    animation: fadeInUp 1s 0.3s ease-out forwards; /* Délai pour arriver après le titre */
 }
 
 .hero-buttons {
     margin-top: 2rem;
+    opacity: 0; /* Commence invisible */
+    animation: fadeInUp 1s 0.6s ease-out forwards; /* Délai plus long */
 }
 
 .features {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    padding: 4rem 0;
+    gap: 2.5rem; /* Espacement augmenté */
+    padding: 5rem 0; /* Padding augmenté */
 }
 
 .feature {
     text-align: center;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-    background: white;
+    padding: 2.5rem; /* Padding augmenté */
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px var(--shadow-light);
+    transition: transform var(--transition-speed) var(--transition-timing), box-shadow var(--transition-speed) var(--transition-timing);
+    background: var(--light-text);
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 .feature:hover {
-    transform: translateY(-5px);
+    transform: translateY(-10px) scale(1.02); /* Effet de soulèvement plus prononcé */
+    box-shadow: 0 10px 25px var(--shadow-medium); /* Ombre plus marquée */
 }
 
 .feature i {
-    color: #3498db;
+    color: var(--primary-color);
     margin-bottom: 1.5rem;
-    font-size: 2.5rem;
+    font-size: 3rem; /* Taille augmentée */
+    transition: transform var(--transition-speed) var(--transition-timing);
+}
+.feature:hover i {
+    transform: scale(1.1); /* Anime l'icône au survol de la carte */
 }
 
 .feature h2 {
     margin-bottom: 1rem;
-    color: #2c3e50;
+    color: var(--secondary-color);
+    font-size: 1.4rem; /* Taille ajustée */
 }
 
 .stats {
-    background: white;
-    padding: 4rem 0;
+    background: var(--light-text);
+    padding: 5rem 0;
     text-align: center;
+}
+
+.stats h2 { /* Ajout d'un titre à la section stats */
+    font-size: 2.2rem;
+    color: var(--secondary-color);
+    margin-bottom: 3rem;
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 .stats-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 2rem;
+    gap: 3rem; /* Espacement augmenté */
     margin-top: 2rem;
 }
 
 .stat-item {
     padding: 1.5rem;
+    /* Appliquer l'animation au scroll avec .section-reveal */
+    /* Animation stagger possible avec JS en ajoutant un délai progressif */
 }
 
 .stat-number {
-    font-size: 2.8rem;
+    font-size: 3.5rem; /* Taille augmentée */
     font-weight: bold;
-    color: #3498db;
+    color: var(--primary-color);
     margin-bottom: 0.5rem;
+    /* L'animation de comptage nécessite du JS. CSS simple : */
+    opacity: 0;
+    animation: scaleIn 0.8s ease-out forwards;
 }
 
 .stat-label {
-    font-size: 1.1rem;
-    color: #7f8c8d;
+    font-size: 1.2rem; /* Taille augmentée */
+    color: var(--grey-text);
+    opacity: 0;
+    animation: fadeInUp 0.8s 0.2s ease-out forwards;
 }
 
 .testimonials {
-    padding: 4rem 0;
+    padding: 5rem 0;
+    /* Appliquer l'animation au scroll avec .section-reveal pour le titre */
+}
+.testimonials h2 { /* Ajout d'un titre */
+    font-size: 2.2rem;
+    color: var(--secondary-color);
+    text-align: center;
+    margin-bottom: 3rem;
 }
 
 .testimonial {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
+    background: var(--light-text);
+    padding: 2.5rem; /* Padding augmenté */
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px var(--shadow-light);
+    margin-bottom: 2.5rem; /* Marge augmentée */
     position: relative;
+    transition: transform var(--transition-speed) var(--transition-timing), box-shadow var(--transition-speed) var(--transition-timing);
+    /* Appliquer l'animation au scroll avec .section-reveal */
+}
+
+.testimonial:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px var(--shadow-medium);
+}
+
+.testimonial::before { /* Ajout de guillemets décoratifs */
+    content: '“';
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    font-size: 4rem;
+    color: var(--primary-color);
+    opacity: 0.1;
+    line-height: 1;
 }
 
 .testimonial p {
     font-style: italic;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem; /* Marge augmentée */
+    font-size: 1.1rem; /* Taille ajustée */
+    position: relative; /* Pour être au-dessus des guillemets */
+    z-index: 1;
 }
 
 .testimonial .author {
     font-weight: bold;
-    color: #3498db;
+    color: var(--primary-color);
+    text-align: right;
 }
 
 .cta {
-    background: #2c3e50;
-    color: white;
+    background: var(--secondary-color);
+    color: var(--light-text);
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 5rem 2rem; /* Padding augmenté */
 }
 
 .cta h2 {
     margin-bottom: 1.5rem;
-    font-size: 2rem;
+    font-size: 2.2rem; /* Taille augmentée */
+    animation: pulse 2s infinite ease-in-out; /* Fait pulser le titre */
+}
+.cta p { /* Ajout d'un paragraphe possible */
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+    opacity: 0.9;
 }
 
 /* ===== Page des Risques ===== */
 .search-section {
     background: #e9ecef;
     padding: 3rem 0;
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 .search-container {
     display: flex;
     gap: 15px;
     max-width: 900px;
+    align-items: center; /* Aligne verticalement */
 }
 
 .search-input, .department-select {
     flex: 1;
-    padding: 0.8rem 1rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+    padding: 0.9rem 1.1rem; /* Padding ajusté */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     font-size: 1rem;
     min-width: 200px;
+    transition: border-color var(--transition-speed) var(--transition-timing), box-shadow var(--transition-speed) var(--transition-timing);
+}
+.search-input:focus, .department-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2); /* Ombre au focus */
 }
 
 .search-btn {
-    padding: 0 2rem;
+    padding: 0.9rem 2rem; /* Doit correspondre au padding vertical des inputs */
+    flex-shrink: 0; /* Empêche le bouton de rétrécir */
 }
 
 .risks-container {
-    padding: 2rem 0;
+    padding: 3rem 0; /* Padding augmenté */
 }
 
 .risk-count {
     margin: 1.5rem 0;
-    color: #7f8c8d;
+    color: var(--grey-text);
     font-size: 1.1rem;
+    text-align: right; /* Alignement à droite */
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 .risk-table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background: var(--light-text);
+    box-shadow: 0 4px 10px var(--shadow-light);
+    border-radius: var(--border-radius);
+    overflow: hidden; /* Pour que le border-radius s'applique aux coins */
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 .risk-table th {
-    background: #3498db;
-    color: white;
-    padding: 15px;
+    background: var(--primary-color);
+    color: var(--light-text);
+    padding: 1rem 1rem; /* Padding ajusté */
     text-align: left;
     font-weight: 600;
+    text-transform: uppercase; /* Met en majuscule */
+    letter-spacing: 0.5px;
 }
 
 .risk-table td {
-    padding: 12px 15px;
+    padding: 0.9rem 1rem; /* Padding ajusté */
     border-bottom: 1px solid #eee;
+    transition: background-color var(--transition-speed) var(--transition-timing);
 }
 
-.risk-table tr:hover {
-    background: #f8f9fa;
+.risk-table tr {
+    opacity: 0;
+    animation: fadeInTableRow 0.5s ease-out forwards;
+}
+/* Animation décalée pour chaque ligne (difficile en pur CSS sans classes/JS) */
+/* .risk-table tr:nth-child(1) { animation-delay: 0.1s; }
+   .risk-table tr:nth-child(2) { animation-delay: 0.2s; } ... */
+
+.risk-table tr:last-child td {
+    border-bottom: none; /* Retire la bordure de la dernière ligne */
+}
+
+.risk-table tr:hover td { /* Changement sur toute la ligne au survol */
+    background: #f1f8ff; /* Bleu très clair */
 }
 
 .risk-level {
     display: inline-block;
-    padding: 4px 10px;
-    border-radius: 4px;
+    padding: 5px 12px; /* Padding ajusté */
+    border-radius: var(--border-radius);
     font-size: 0.85rem;
     font-weight: bold;
-    min-width: 60px;
+    min-width: 70px; /* Largeur minimale */
     text-align: center;
+    color: var(--light-text); /* Texte blanc par défaut */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    animation: scaleInBadge 0.6s ease-out forwards; /* Petite animation d'apparition */
 }
 
-.high { background: #e74c3c; color: white; }
-.medium { background: #f39c12; color: white; }
-.low { background: #2ecc71; color: white; }
+.high { background: var(--accent-color); }
+.medium { background: #f39c12; } /* Orange */
+.low { background: #2ecc71; } /* Vert */
 
 .no-results {
     text-align: center;
-    padding: 3rem;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 4rem; /* Padding augmenté */
+    background: var(--light-text);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px var(--shadow-light);
+    color: var(--grey-text);
+    font-size: 1.2rem;
+    /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
 /* ===== Responsive ===== */
+@media (max-width: 992px) {
+    .features {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .hero h1 { font-size: 2.8rem; }
+    .hero p { font-size: 1.2rem; }
+}
+
 @media (max-width: 768px) {
-    .search-container {
-        flex-direction: column;
+    .container { width: 95%; }
+    .navbar .container { flex-direction: column; align-items: flex-start; }
+    .nav-links { margin-top: 1rem; flex-direction: column; align-items: flex-start; width: 100%; }
+    .nav-links li { width: 100%; }
+    .nav-links li a { margin-left: 0; padding: 0.5rem 0; display: block; width: 100%; }
+    .nav-links li a::after { content: none; } /* Cache le soulignement sur mobile */
+
+    .search-container { flex-direction: column; gap: 10px; }
+    .search-input, .department-select, .search-btn { width: 100%; }
+    .search-btn { margin-top: 0.5rem; }
+
+    .hero { padding: 5rem 1rem 4rem; }
+    .hero h1 { font-size: 2.2rem; }
+    .hero p { font-size: 1.1rem; }
+    .hero-buttons { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+    .btn-outline { margin-left: 0; }
+
+    .features, .stats, .testimonials, .cta, .risks-container { padding: 3rem 0; }
+    .stats-container { grid-template-columns: 1fr 1fr; } /* 2 colonnes sur mobile */
+    .stat-number { font-size: 2.5rem; }
+
+    .risk-table thead { display: none; } /* Cache l'en-tête */
+    .risk-table, .risk-table tbody, .risk-table tr, .risk-table td { display: block; width: 100%; }
+    .risk-table tr { margin-bottom: 1rem; border: 1px solid #eee; border-radius: var(--border-radius); }
+    .risk-table td { text-align: right; padding-left: 50%; position: relative; border-bottom: 0; }
+    .risk-table td::before { /* Ajoute le label de colonne */
+        content: attr(data-label); /* Nécessite d'ajouter data-label="Nom Colonne" aux TD en HTML */
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        color: var(--secondary-color);
     }
-    
-    .hero {
-        padding: 4rem 1rem;
-    }
-    
-    .hero h1 {
-        font-size: 2rem;
-    }
-    
-    .hero-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .btn-outline {
-        margin-left: 0;
-    }
+    .risk-table td:last-child { border-bottom: 0; } /* Pour le dernier TD de chaque "carte" */
+    .risk-level { float: right; } /* Alignement du badge */
 }
 
-/* ===== Animations ===== */
+@media (max-width: 480px) {
+    .stats-container { grid-template-columns: 1fr; } /* 1 colonne sur petit mobile */
+    .hero h1 { font-size: 2rem; }
+    .logo { font-size: 1.5rem; }
+}
+
+
+/* ===== Keyframes Animations ===== */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.animate {
-    animation: fadeInUp 0.6s ease-out forwards;
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleInBadge {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+@keyframes fadeInTableRow {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Tu peux ajouter d'autres keyframes ici (slideInLeft, slideInRight, etc.) */
