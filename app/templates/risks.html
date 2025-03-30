@@ -6,72 +6,635 @@
 <section class="search-section">
     <div class="container">
         <div class="search-container">
-            <input type="text" 
-                   class="search-input" 
-                   id="search-input"
-                   placeholder="Rechercher un département..."
-                   value="{{ selected_department }}">
-            
-            <select class="department-select" id="department-select">
-                <option value="">Tous les départements</option>
-                {% for dept in departments %}
-                <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>
-                    {{ dept }}
-                </option>
-                {% endfor %}
-            </select>
-            
-            <button class="search-btn" id="search-btn">Rechercher</button>
+            <!-- Composant de recherche amélioré avec accessibilité -->
+            <div class="search-wrapper" role="search">
+                <label for="search-input" class="visually-hidden">Rechercher un département</label>
+                <div class="input-group">
+                    <input type="text" 
+                           class="search-input" 
+                           id="search-input"
+                           placeholder="Rechercher un département..."
+                           list="departments-list"
+                           value="{{ selected_department }}"
+                           aria-label="Rechercher un département"
+                           autocomplete="off">
+                    <button class="search-btn" id="search-btn" aria-label="Lancer la recherche">
+                        <span class="search-icon"></span>
+                        <span class="search-text">Rechercher</span>
+                    </button>
+                </div>
+                <datalist id="departments-list">
+                    {% for dept in departments %}
+                    <option value="{{ dept }}">
+                    {% endfor %}
+                </datalist>
+                <div id="search-feedback" class="search-feedback" aria-live="polite"></div>
+            </div>
         </div>
     </div>
 </section>
 
 <div class="container">
-    <div class="risk-count" id="risk-count">
-        {{ risques|length }} risques trouvés
+    <div class="results-header">
+        <h2 class="results-title">Résultats de recherche</h2>
+        <div class="risk-count" id="risk-count" aria-live="polite">
+            {{ risques|length }} risques trouvés
+        </div>
     </div>
     
-    <div id="risks-results">
+    <div id="loading-indicator" class="loading-indicator hidden">
+        <div class="spinner"></div>
+        <span>Chargement des données...</span>
+    </div>
+    
+    <div id="risks-results" class="risks-grid">
         {% include 'risk_partial.html' %}
+    </div>
+    
+    <div id="no-results" class="no-results hidden">
+        <p>Aucun résultat trouvé pour <strong id="search-term"></strong></p>
+        <p>Suggestions :</p>
+        <ul id="suggestions-list"></ul>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Éléments DOM
     const searchInput = document.getElementById('search-input');
-    const departmentSelect = document.getElementById('department-select');
     const searchBtn = document.getElementById('search-btn');
+    const searchFeedback = document.getElementById('search-feedback');
+    const risksResults = document.getElementById('risks-results');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const noResults = document.getElementById('no-results');
+    const searchTerm = document.getElementById('search-term');
+    const suggestionsList = document.getElementById('suggestions-list');
     
-    function updateResults() {
-        const department = searchInput.value || departmentSelect.value;
+    // Récupération des départements depuis le contexte Jinja
+    // Utilisation de JSON.parse pour éviter les erreurs de syntaxe JavaScript
+    const departments = JSON.parse('{{ departments | tojson | safe }}');
+    
+    // Cache pour éviter des requêtes redondantes
+    const resultsCache = new Map();
+    
+    // État de recherche en cours
+    let isSearching = false;
+    
+    // Dernière recherche effectuée
+    let lastSearch = '';
+    
+    /**
+     * Normalisation : suppression des accents et passage en minuscules
+     * @param {string} str - Chaîne à normaliser
+     * @return {string} Chaîne normalisée
+     */
+    function normalizeText(str) {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+    
+    /**
+     * Calcul de la distance de Levenshtein avec optimisation pour arrêt anticipé
+     * @param {string} a - Première chaîne
+     * @param {string} b - Deuxième chaîne
+     * @param {number} threshold - Seuil maximum
+     * @return {number} Distance calculée
+     */
+    function levenshtein(a, b, threshold = 3) {
+        if (Math.abs(a.length - b.length) > threshold) return Infinity;
         
-        fetch(`/risks?department=${encodeURIComponent(department)}`, {
+        const m = a.length, n = b.length;
+        let previousRow = Array(n + 1).fill(0).map((_, i) => i);
+        
+        for (let i = 1; i <= m; i++) {
+            const currentRow = [i];
+            let minDistance = i;
+            
+            for (let j = 1; j <= n; j++) {
+                const insertCost = currentRow[j-1] + 1;
+                const deleteCost = previousRow[j] + 1;
+                const replaceCost = previousRow[j-1] + (a[i-1] === b[j-1] ? 0 : 1);
+                
+                const cost = Math.min(insertCost, deleteCost, replaceCost);
+                currentRow.push(cost);
+                minDistance = Math.min(minDistance, cost);
+            }
+            
+            // Arrêt anticipé si toutes les valeurs dépassent le seuil
+            if (minDistance > threshold) return Infinity;
+            previousRow = currentRow;
+        }
+        
+        return previousRow[n];
+    }
+    
+    /**
+     * Recherche le département le plus proche de la saisie utilisateur
+     * @param {string} input - Saisie utilisateur
+     * @return {object} Département correspondant et distance
+     */
+    function getClosestDepartment(input) {
+        const normInput = normalizeText(input);
+        if (!normInput) return { match: "", distance: Infinity };
+        
+        let bestMatch = "";
+        let bestDistance = Infinity;
+        
+        // Vérification d'abord de correspondance exacte ou de début
+        for (const dept of departments) {
+            const normDept = normalizeText(dept);
+            if (normDept === normInput) return { match: dept, distance: 0 };
+            if (normDept.startsWith(normInput)) return { match: dept, distance: 0.5 };
+        }
+        
+        // Sinon recherche par distance
+        for (const dept of departments) {
+            const normDept = normalizeText(dept);
+            const distance = levenshtein(normInput, normDept);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestMatch = dept;
+            }
+        }
+        
+        return { match: bestMatch, distance: bestDistance };
+    }
+    
+    /**
+     * Obtient des suggestions basées sur l'entrée utilisateur
+     * @param {string} input - Saisie utilisateur
+     * @return {Array} Liste des suggestions
+     */
+    function getSuggestions(input) {
+        const normInput = normalizeText(input);
+        if (!normInput) return [];
+        
+        // Recherche exacte en priorité
+        const exactMatches = departments.filter(dept => {
+            // Vérifie si le département est exactement ce qu'on cherche
+            return normalizeText(dept) === normInput;
+        });
+        
+        // Si on a une correspondance exacte, on retourne uniquement celle-ci
+        if (exactMatches.length > 0) {
+            return exactMatches;
+        }
+        
+        // Sinon on cherche les départements qui commencent par l'entrée
+        const prefixMatches = departments.filter(dept => {
+            const normDept = normalizeText(dept);
+            const deptWords = normDept.split(/\s+/);
+            // On vérifie si un mot du département commence par l'entrée
+            return deptWords.some(word => word === normInput || word.startsWith(normInput));
+        });
+        
+        // Si on a des correspondances de préfixe, on les retourne
+        if (prefixMatches.length > 0) {
+            return prefixMatches.slice(0, 5);
+        }
+        
+        // En dernier recours, on cherche des correspondances partielles
+        return departments
+            .filter(dept => normalizeText(dept).includes(normInput))
+            .slice(0, 5);
+    }
+    
+    /**
+     * Affiche le feedback pendant la saisie
+     * @param {string} input - Saisie utilisateur
+     */
+    function showSearchFeedback(input) {
+        if (!input.trim()) {
+            searchFeedback.textContent = '';
+            searchFeedback.classList.remove('visible');
+            return;
+        }
+        
+        const { match, distance } = getClosestDepartment(input);
+        
+        if (distance <= 2) {
+            searchFeedback.textContent = `Voulez-vous dire "${match}" ?`;
+            searchFeedback.classList.add('visible');
+        } else {
+            searchFeedback.textContent = '';
+            searchFeedback.classList.remove('visible');
+        }
+    }
+    
+    /**
+     * Met à jour les résultats de recherche
+     * @param {boolean} showLoading - Indique si l'indicateur de chargement doit être affiché
+     */
+    function updateResults(showLoading = true) {
+        if (isSearching) return;
+        
+        const inputValue = searchInput.value.trim();
+        
+        // Si la recherche est vide, réinitialiser l'affichage
+        if (!inputValue) {
+            fetch('/risks', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                risksResults.innerHTML = data.html;
+                document.getElementById('risk-count').textContent = `${data.count} risques trouvés`;
+                updateURL('');
+            });
+            return;
+        }
+        
+        // Si la recherche est identique à la dernière, ne rien faire
+        if (inputValue === lastSearch) return;
+        lastSearch = inputValue;
+        
+        // Recherche exacte d'abord
+        const exactMatches = departments.filter(dept => 
+            normalizeText(dept) === normalizeText(inputValue)
+        );
+        
+        if (exactMatches.length === 1) {
+            // Si on a une correspondance exacte unique, on l'utilise directement
+            const searchQuery = exactMatches[0];
+            processSearchQuery(searchQuery, showLoading);
+            return;
+        }
+        
+        // Recherche par mots entiers
+        const wordMatches = departments.filter(dept => {
+            const deptWords = normalizeText(dept).split(/\s+/);
+            const inputWords = normalizeText(inputValue).split(/\s+/);
+            
+            // Vérifie si un des mots de l'entrée correspond exactement à un mot du département
+            return inputWords.some(inputWord => 
+                deptWords.some(deptWord => deptWord === inputWord)
+            );
+        });
+        
+        if (wordMatches.length === 1) {
+            // Si on a une correspondance de mot unique, on l'utilise
+            const searchQuery = wordMatches[0];
+            processSearchQuery(searchQuery, showLoading);
+            return;
+        }
+        
+        // En dernier recours, utiliser la distance de Levenshtein
+        const { match, distance } = getClosestDepartment(inputValue);
+        const searchQuery = (distance <= 2) ? match : inputValue;
+        
+        processSearchQuery(searchQuery, showLoading);
+    }
+    
+    /**
+     * Traite la requête de recherche finale
+     * @param {string} searchQuery - Requête de recherche finale
+     * @param {boolean} showLoading - Indique si l'indicateur de chargement doit être affiché
+     */
+    function processSearchQuery(searchQuery, showLoading) {
+        // Vérifier le cache
+        if (resultsCache.has(searchQuery)) {
+            displayResults(resultsCache.get(searchQuery), searchQuery);
+            return;
+        }
+        
+        // Afficher l'indicateur de chargement
+        if (showLoading) {
+            loadingIndicator.classList.remove('hidden');
+            risksResults.classList.add('dimmed');
+        }
+        
+        isSearching = true;
+        
+        // Effectuer la requête
+        fetch(`/risks?department=${encodeURIComponent(searchQuery)}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => response.json())
         .then(data => {
-            document.getElementById('risks-results').innerHTML = data.html;
-            document.getElementById('risk-count').textContent = `${data.count} risques trouvés`;
-            
-            // Mettre à jour l'URL sans recharger la page
-            const url = new URL(window.location);
-            url.searchParams.set('department', department);
-            window.history.pushState({}, '', url);
+            // Stocker dans le cache
+            resultsCache.set(searchQuery, data);
+            displayResults(data, searchQuery);
+        })
+        .catch(error => {
+            console.error('Erreur lors de la recherche:', error);
+            document.getElementById('risk-count').textContent = `Une erreur s'est produite`;
+        })
+        .finally(() => {
+            loadingIndicator.classList.add('hidden');
+            risksResults.classList.remove('dimmed');
+            isSearching = false;
         });
     }
     
-    // Écouteurs d'événements
-    searchBtn.addEventListener('click', updateResults);
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') updateResults();
-    });
-    departmentSelect.addEventListener('change', updateResults);
-    
-    // Recherche initiale si paramètre dans l'URL
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('department')) {
-        updateResults();
+    /**
+     * Affiche les résultats de recherche
+     * @param {object} data - Données de résultats
+     * @param {string} query - Requête de recherche
+     */
+    function displayResults(data, query) {
+        // Mettre à jour le compteur
+        document.getElementById('risk-count').textContent = `${data.count} risques trouvés`;
+        
+        // Afficher les résultats ou le message "aucun résultat"
+        if (data.count > 0) {
+            risksResults.innerHTML = data.html;
+            risksResults.classList.remove('hidden');
+            noResults.classList.add('hidden');
+        } else {
+            risksResults.classList.add('hidden');
+            noResults.classList.remove('hidden');
+            searchTerm.textContent = query;
+            
+            // Afficher des suggestions
+            const suggestions = getSuggestions(query);
+            suggestionsList.innerHTML = '';
+            
+            if (suggestions.length > 0) {
+                suggestions.forEach(suggestion => {
+                    const li = document.createElement('li');
+                    const button = document.createElement('button');
+                    button.textContent = suggestion;
+                    button.className = 'suggestion-btn';
+                    button.addEventListener('click', () => {
+                        searchInput.value = suggestion;
+                        updateResults();
+                    });
+                    li.appendChild(button);
+                    suggestionsList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Essayez avec un autre terme de recherche';
+                suggestionsList.appendChild(li);
+            }
+        }
+        
+        // Mettre à jour l'URL
+        updateURL(query);
+        
+        // Correction de la valeur affichée si nécessaire
+        if (query !== searchInput.value && getClosestDepartment(searchInput.value).distance <= 2) {
+            searchInput.value = query;
+        }
     }
+    
+    /**
+     * Met à jour l'URL sans recharger la page
+     * @param {string} department - Département recherché
+     */
+    function updateURL(department) {
+        const url = new URL(window.location);
+        if (department) {
+            url.searchParams.set('department', department);
+        } else {
+            url.searchParams.delete('department');
+        }
+        window.history.pushState({}, '', url);
+    }
+    
+    // Gestionnaires d'événements
+    let typingTimer;
+    const typingDelay = 400; // Délai légèrement réduit pour plus de réactivité
+    
+    searchInput.addEventListener('input', function() {
+        showSearchFeedback(this.value);
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => updateResults(), typingDelay);
+    });
+    
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(typingTimer);
+            updateResults();
+        } else if (e.key === 'Escape') {
+            searchInput.value = '';
+            searchFeedback.textContent = '';
+            searchFeedback.classList.remove('visible');
+        }
+    });
+    
+    searchInput.addEventListener('focus', function() {
+        if (this.value) showSearchFeedback(this.value);
+    });
+    
+    searchBtn.addEventListener('click', function() {
+        clearTimeout(typingTimer);
+        updateResults();
+    });
+    
+    // Initialisation: lancer la recherche si un paramètre est présent dans l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const deptParam = urlParams.get('department');
+    if (deptParam) {
+        searchInput.value = deptParam;
+        updateResults(false);
+    }
+    
+    // Ajout d'un gestionnaire d'événements pour navigation par historique
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const deptParam = urlParams.get('department') || '';
+        searchInput.value = deptParam;
+        updateResults(false);
+    });
 });
 </script>
+
+<style>
+/* Styles améliorés pour l'interface de recherche */
+.search-section {
+    margin: 2rem 0;
+}
+
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.input-group {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #e0e0e0;
+    border-right: none;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #4a89dc;
+    box-shadow: 0 0 0 2px rgba(74, 137, 220, 0.2);
+}
+
+.search-btn {
+    padding: 0 20px;
+    background: #4a89dc;
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+}
+
+.search-btn:hover {
+    background: #3a70b9;
+}
+
+.search-icon {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.search-text {
+    margin-left: 8px;
+}
+
+.search-feedback {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    padding: 0.5rem;
+    background: #f8f8f8;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    color: #666;
+    display: none;
+    z-index: 10;
+}
+
+.search-feedback.visible {
+    display: block;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.75rem;
+}
+
+.results-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.risk-count {
+    font-size: 0.9rem;
+    color: #666;
+    background: #f0f4f8;
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #4a89dc;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.risks-grid.dimmed {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.hidden {
+    display: none;
+}
+
+.no-results {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.suggestions-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+}
+
+.suggestion-btn {
+    background: transparent;
+    border: none;
+    color: #4a89dc;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+}
+
+.suggestion-btn:hover {
+    color: #3a70b9;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .search-text {
+        display: none;
+    }
+    
+    .search-btn {
+        padding: 0 15px;
+    }
+    
+    .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .risk-count {
+        margin-top: 0.5rem;
+    }
+}
+</style>
 {% endblock %}
