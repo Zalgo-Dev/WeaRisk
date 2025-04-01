@@ -45,7 +45,7 @@ main {
     width: 90%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 15px;
+    padding: 1rem;
 }
 
 a {
@@ -70,7 +70,6 @@ a {
 .navbar {
     background: var(--secondary-color);
     color: var(--light-text);
-    padding: 1rem 0;
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -534,6 +533,8 @@ a {
 /* Styles améliorés pour l'interface de recherche */
 .search-section {
     margin: 0rem 0;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
 }
 
 .search-wrapper {
