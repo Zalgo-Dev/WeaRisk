@@ -36,6 +36,11 @@ body {
     overflow-x: hidden; /* Empêche le débordement horizontal */
 }
 
+main {
+    padding: 0;
+    margin: 0;
+}
+
 .container {
     width: 90%;
     max-width: 1200px;
@@ -70,14 +75,9 @@ a {
     top: 0;
     z-index: 1000;
     box-shadow: 0 2px 5px var(--shadow-light);
-    transition: background-color var(--transition-speed) var(--transition-timing), box-shadow var(--transition-speed) var(--transition-timing);
+    transition: background-color var(--transition-speed) var(--transition-timing), 
+                box-shadow var(--transition-speed) var(--transition-timing);
 }
-
-/* Optionnel: Effet au scroll si besoin avec JS
-.navbar.scrolled {
-    background: rgba(44, 62, 80, 0.95);
-    box-shadow: 0 4px 10px var(--shadow-medium);
-} */
 
 .navbar .container {
     display: flex;
@@ -86,30 +86,32 @@ a {
 }
 
 .logo {
-    font-size: 1.7rem; /* Légèrement plus grand */
+    font-size: 1.7rem;
     font-weight: bold;
     color: var(--light-text);
     transition: transform var(--transition-speed) var(--transition-timing);
 }
+
 .logo:hover {
-    transform: scale(1.05); /* Effet subtil au survol */
+    transform: scale(1.05);
 }
 
+/* Menu desktop */
 .nav-links {
     display: flex;
     list-style: none;
+    gap: 1.5rem;
 }
 
 .nav-links li a {
     color: var(--light-text);
-    margin-left: 1.8rem; /* Espacement ajusté */
     font-weight: 500;
+    padding: 0.5rem 0;
     position: relative;
-    padding-bottom: 5px; /* Espace pour le pseudo-élément */
     transition: color var(--transition-speed) var(--transition-timing);
 }
 
-.nav-links li a::after { /* Soulignement animé au survol */
+.nav-links li a::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -121,20 +123,80 @@ a {
 }
 
 .nav-links li a:hover {
-    color: var(--primary-color); /* Changement de couleur au survol */
+    color: var(--primary-color);
 }
 
 .nav-links li a:hover::after {
-    width: 100%; /* Anime le soulignement */
+    width: 100%;
 }
 
 .footer {
     background: var(--secondary-color);
     color: var(--light-text);
     text-align: center;
-    padding: 2rem 0; /* Padding augmenté */
-    margin-top: 4rem; /* Marge augmentée */
+    padding: 2rem 0;
     opacity: 0.9;
+}
+
+/* Menu mobile */
+.menu-toggle {
+    display: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    background: transparent;
+    border: none;
+}
+
+.menu-toggle .bar {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background: var(--light-text);
+    margin: 5px 0;
+    transition: all 0.3s ease;
+}
+
+/* Styles responsives */
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: block;
+    }
+    
+    .nav-links {
+        position: fixed;
+        top: 70px;
+        left: -100%;
+        width: 100%;
+        height: calc(100vh - 70px);
+        background: var(--secondary-color);
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 0;
+        gap: 2rem;
+        transition: left 0.3s ease;
+        margin: 0;
+    }
+    
+    .nav-links li a {
+        margin-left: 0;
+        padding: 0.5rem 1rem;
+    }
+    
+    .nav-links.active {
+        left: 0;
+    }
+    
+    .menu-toggle.active .bar:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+    
+    .menu-toggle.active .bar:nth-child(2) {
+        opacity: 0;
+    }
+    
+    .menu-toggle.active .bar:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
 }
 
 /* ===== Boutons ===== */
@@ -364,7 +426,7 @@ a {
 /* ===== Page des Risques ===== */
 .search-section {
     background: #e9ecef;
-    padding: 3rem 0;
+    padding: 2rem 0;
     /* Appliquer l'animation au scroll avec .section-reveal */
 }
 
