@@ -43,17 +43,32 @@ def format_datetime(value):
 def create_app():
     app = Flask(__name__)
 
+    # Chargement de la configuration
     config_path = Path(__file__).parent.parent / "utils" / "config.json"
-    with open(config_path) as f:
-        config = json.load(f)
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+            for section in config:
+                for key, value in config[section].items():
+                    app.config[f"{section.upper()}_{key.upper()}"] = value
+    except Exception as e:
+        print(f"Erreur de chargement de la configuration: {str(e)}")
+        # Valeurs par défaut
+        app.config.update({
+            "WEATHER_REALTIME": True,
+            "SERVER_PORT": 8080,
+            "SERVER_DEBUG": False
+        })
 
-    for section in config:
-        for key, value in config[section].items():
-            app.config[f"{section.upper()}_{key.upper()}"] = value
-
-    # Enregistrement du blueprint (assurez-vous que le blueprint défini dans app/routes.py a un nom unique)
-    from .routes import main_routes
-    app.register_blueprint(main_routes)
+    # Enregistrement du blueprint
+    try:
+        from app.routes import main_routes
+        app.register_blueprint(main_routes)
+        print("Blueprint 'main_routes' enregistré avec succès")
+        print(f"Routes disponibles: {[str(rule) for rule in app.url_map.iter_rules()]}")
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement du blueprint: {str(e)}")
+        raise  # On propage l'erreur car c'est critique
 
     # Enregistrement des filtres Jinja
     app.jinja_env.filters['format_datetime'] = format_datetime
