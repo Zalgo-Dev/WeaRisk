@@ -71,3 +71,99 @@ def api_risks():
     limit = request.args.get('limit', 100, type=int)
     risks_data = get_risks_data(department if department else None, limit)
     return jsonify(risks_data)
+
+# Nouvelles routes pour la carte
+@main_routes.route('/map')
+def map_view():
+    """Affiche la page de carte interactive des risques climatiques"""
+    return render_template('map.html')
+
+@main_routes.route('/api/map-data')
+def map_data():
+    """API endpoint pour fournir les données de risque pour la carte"""
+    risk_type = request.args.get('risk_type', 'overall_risk')
+    timestamp = request.args.get('timestamp')
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Vérifier si la base existe et contient des données
+        try:
+            cursor.execute("SELECT COUNT(*) FROM risks")
+            count = cursor.fetchone()[0]
+            if count == 0:
+                return jsonify({
+                    'error': 'La base de données ne contient aucune donnée'
+                }), 404
+        except sqlite3.OperationalError:
+            return jsonify({
+                'error': 'La table des risques n\'existe pas dans la base de données'
+            }), 404
+        
+        # Récupérer d'abord tous les timestamps disponibles (pour le menu déroulant)
+        cursor.execute("SELECT DISTINCT timestamp FROM risks ORDER BY timestamp DESC")
+        timestamps = [row[0] for row in cursor.fetchall()]
+        
+        # Si aucun timestamp n'est spécifié, utiliser le plus récent
+        if not timestamp and timestamps:
+            timestamp = timestamps[0]
+        
+        # Vérifier les colonnes disponibles
+        cursor.execute("PRAGMA table_info(risks)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Construire la requête en fonction des colonnes disponibles
+        if 'department_code' in columns and 'department_name' in columns:
+            select_columns = ['department_code', 'department_name']
+        elif 'department_code' in columns:
+            select_columns = ['department_code', 'department_code AS department_name']
+        elif 'department_name' in columns:
+            select_columns = ['department_name', 'department_name AS department_code']
+        else:
+            return jsonify({
+                'error': 'La structure de la base de données ne contient pas les colonnes nécessaires'
+            }), 500
+        
+        # Ajouter les colonnes de risque si elles existent
+        risk_columns = ['electrical_risk', 'flood_risk', 'heat_risk', 'wind_risk', 'overall_risk']
+        for col in risk_columns:
+            if col in columns:
+                select_columns.append(col)
+            else:
+                select_columns.append('0 AS ' + col)
+        
+        # Construire la requête SQL
+        query = "SELECT " + ", ".join(select_columns) + " FROM risks"
+        
+        # Ajouter la condition de timestamp si nécessaire
+        if timestamp:
+            query += " WHERE timestamp = ?"
+            cursor.execute(query, (timestamp,))
+        else:
+            # Si pas de timestamp, prendre les données les plus récentes
+            query += " ORDER BY timestamp DESC LIMIT 100"
+            cursor.execute(query)
+        
+        results = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        if not results:
+            return jsonify({
+                'timestamps': timestamps,
+                'current_timestamp': timestamp,
+                'data': []
+            })
+        
+        return jsonify({
+            'timestamps': timestamps,
+            'current_timestamp': timestamp,
+            'data': results
+        })
+        
+    except Exception as e:
+        print(f"Erreur API map-data: {str(e)}")
+        return jsonify({
+            'error': f"Une erreur s'est produite: {str(e)}"
+        }), 500
