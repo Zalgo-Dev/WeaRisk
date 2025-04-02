@@ -1,0 +1,561 @@
+{% extends 'include/base.html' %}
+
+{% block title %}Carte des Risques - WeaRisk{% endblock %}
+
+{% block css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    .map-container {
+        width: 100%;
+        height: 75vh;
+        margin: 2rem 0;
+        border-radius: var(--border-radius);
+        box-shadow: 0 4px 10px var(--shadow-light);
+    }
+    
+    .map-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .map-control {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .info-legend {
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+    
+    .info-legend h4 {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    
+    .info-legend i {
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+    
+    .info-panel {
+        padding: 6px 8px;
+        background: white;
+        border-radius: 5px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+    
+    .info-panel h4 {
+        margin: 0 0 5px 0;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    
+    .dept-name {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    
+    .risk-value {
+        margin: 2px 0;
+        font-size: 12px;
+    }
+    
+    .risk-level {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        min-width: 50px;
+    }
+    
+    .high { background-color: #d73027; }
+    .medium { background-color: #fc8d59; }
+    .low { background-color: #91cf60; }
+    
+    .loading-indicator {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        z-index: 1000;
+        text-align: center;
+    }
+    
+    .spinner {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: var(--primary-color);
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 10px;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .status-message {
+        background-color: #f8f9fa;
+        border-left: 4px solid #3498db;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    
+    .status-message.warning {
+        border-left-color: #f39c12;
+    }
+    
+    .status-message.error {
+        border-left-color: #e74c3c;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Carte des Risques Climatiques</h1>
+    <p>Visualisez les niveaux de risque par département sur l'ensemble du territoire français.</p>
+    
+    <div id="status-message" class="status-message" style="display: none;"></div>
+    
+    <div class="map-controls">
+        <div class="map-control">
+            <label for="risk-type">Type de risque:</label>
+            <select id="risk-type" class="form-control">
+                <option value="overall_risk">Risque Global</option>
+                <option value="electrical_risk">Risque Électrique ⚡</option>
+                <option value="flood_risk">Risque d'Inondation 🌊</option>
+                <option value="heat_risk">Risque de Chaleur 🔥</option>
+                <option value="wind_risk">Risque de Vent 🌬️</option>
+            </select>
+        </div>
+        
+        <div class="map-control">
+            <label for="timestamp-select">Période:</label>
+            <select id="timestamp-select" class="form-control">
+                <!-- Options seront ajoutées dynamiquement -->
+                <option value="latest">Données les plus récentes</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="map-container" class="map-container">
+        <!-- La carte sera chargée ici -->
+        <div id="loading" class="loading-indicator">
+            <div class="spinner"></div>
+            <span>Chargement de la carte...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+// Variables globales
+let map;
+let geojsonLayer;
+let info;
+let legend;
+let currentRiskType = 'overall_risk';
+let currentTimestamp = 'latest';
+let departmentsData = {};
+let usingRealData = false;
+
+// Initialiser la carte
+function initMap() {
+    // Créer la carte centrée sur la France
+    map = L.map('map-container').setView([46.8, 2.5], 6);
+    
+    // Ajouter la couche de fond (tiles)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    
+    // Ajouter les contrôles d'information
+    addInfoControl();
+    addLegend();
+    
+    // Charger les données GeoJSON
+    loadGeoJSONData();
+}
+
+// Ajouter le contrôle d'information
+function addInfoControl() {
+    info = L.control();
+    
+    info.onAdd = function(map) {
+        this._div = L.DomUtil.create('div', 'info-panel');
+        this.update();
+        return this._div;
+    };
+    
+    info.update = function(props) {
+        if (props) {
+            const deptCode = props.code;
+            const deptData = departmentsData[deptCode];
+            
+            let content = `<h4>${props.nom}</h4>`;
+            
+            if (deptData) {
+                const getValueWithDefault = (value) => value !== undefined ? parseFloat(value).toFixed(1) + '%' : 'N/A';
+                const getRiskClass = value => value > 70 ? 'high' : (value > 30 ? 'medium' : 'low');
+                
+                content += `
+                    <div class="risk-value">⚡ Risque électrique: <span class="risk-level ${getRiskClass(deptData.electrical_risk)}">${getValueWithDefault(deptData.electrical_risk)}</span></div>
+                    <div class="risk-value">🌊 Risque d'inondation: <span class="risk-level ${getRiskClass(deptData.flood_risk)}">${getValueWithDefault(deptData.flood_risk)}</span></div>
+                    <div class="risk-value">🔥 Risque de chaleur: <span class="risk-level ${getRiskClass(deptData.heat_risk)}">${getValueWithDefault(deptData.heat_risk)}</span></div>
+                    <div class="risk-value">🌬️ Risque de vent: <span class="risk-level ${getRiskClass(deptData.wind_risk)}">${getValueWithDefault(deptData.wind_risk)}</span></div>
+                    <div class="risk-value">📊 Risque global: <span class="risk-level ${getRiskClass(deptData.overall_risk)}">${getValueWithDefault(deptData.overall_risk)}</span></div>
+                `;
+                
+                if (!usingRealData) {
+                    content += '<small><i>Données simulées</i></small>';
+                }
+            } else {
+                content += '<p>Aucune donnée disponible pour ce département</p>';
+            }
+            
+            this._div.innerHTML = content;
+        } else {
+            this._div.innerHTML = '<p>Survolez un département</p>';
+        }
+    };
+    
+    info.addTo(map);
+}
+
+// Ajouter la légende
+function addLegend() {
+    legend = L.control({position: 'bottomright'});
+    
+    legend.onAdd = function(map) {
+        const div = L.DomUtil.create('div', 'info-legend');
+        const grades = [0, 10, 30, 50, 70, 90];
+        const labels = [];
+        let title;
+        
+        switch(currentRiskType) {
+            case 'electrical_risk':
+                title = 'Risque Électrique';
+                break;
+            case 'flood_risk':
+                title = 'Risque d\'Inondation';
+                break;
+            case 'heat_risk':
+                title = 'Risque de Chaleur';
+                break;
+            case 'wind_risk':
+                title = 'Risque de Vent';
+                break;
+            default:
+                title = 'Risque Global';
+        }
+        
+        div.innerHTML = `<h4>${title}</h4>`;
+        
+        // Générer les étiquettes pour chaque intervalle de risque
+        for (let i = 0; i < grades.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+                grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%<br>' : '%+');
+        }
+        
+        return div;
+    };
+    
+    legend.addTo(map);
+}
+
+// Charger les contours des départements français
+function loadGeoJSONData() {
+    fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson')
+        .then(response => response.json())
+        .then(data => {
+            // Une fois les contours chargés, on charge les données de risque
+            document.getElementById('loading').style.display = 'none';
+            loadRiskData(data);
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des contours GeoJSON:', error);
+            document.getElementById('loading').innerHTML = 
+                `<p>Erreur de chargement des contours: ${error.message}</p>
+                <button onclick="initMap()" class="btn">Réessayer</button>`;
+        });
+}
+
+// Charger les données de risque
+function loadRiskData(geoJsonData) {
+    const statusMessage = document.getElementById('status-message');
+    
+    // Tentative de récupération des données réelles
+    fetch(`/api/map-data?risk_type=${currentRiskType}${currentTimestamp !== 'latest' ? '&timestamp=' + currentTimestamp : ''}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Stocker les données
+            departmentsData = {};
+            if (data.data && data.data.length > 0) {
+                data.data.forEach(dept => {
+                    departmentsData[dept.department_code] = dept;
+                });
+            } else {
+                throw new Error('Aucune donnée de risque disponible');
+            }
+            
+            // Mettre à jour les périodes disponibles
+            updateTimestampSelector(data.timestamps, data.current_timestamp);
+            
+            usingRealData = true;
+            
+            // Afficher la carte avec les données
+            displayGeoJSON(geoJsonData);
+            
+            statusMessage.className = 'status-message';
+            statusMessage.textContent = 'Utilisation des données réelles.';
+            statusMessage.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des données de risque:', error);
+            
+            // Générer des données factices pour chaque département
+            departmentsData = {};
+            geoJsonData.features.forEach(feature => {
+                const code = feature.properties.code;
+                departmentsData[code] = {
+                    department_code: code,
+                    department_name: feature.properties.nom,
+                    electrical_risk: Math.floor(Math.random() * 100),
+                    flood_risk: Math.floor(Math.random() * 100),
+                    heat_risk: Math.floor(Math.random() * 100),
+                    wind_risk: Math.floor(Math.random() * 100),
+                    overall_risk: Math.floor(Math.random() * 100)
+                };
+            });
+            
+            usingRealData = false;
+            
+            // Afficher la carte avec les données fictives
+            displayGeoJSON(geoJsonData);
+            
+            statusMessage.className = 'status-message warning';
+            statusMessage.textContent = `Utilisation de données simulées: ${error.message}`;
+            statusMessage.style.display = 'block';
+        });
+}
+
+// Mettre à jour le sélecteur de période
+function updateTimestampSelector(timestamps, currentTimestamp) {
+    const select = document.getElementById('timestamp-select');
+    select.innerHTML = '';
+    
+    // Option par défaut
+    const defaultOption = document.createElement('option');
+    defaultOption.value = 'latest';
+    defaultOption.text = 'Données les plus récentes';
+    select.appendChild(defaultOption);
+    
+    // Ajouter les timestamps disponibles
+    if (timestamps && timestamps.length > 0) {
+        timestamps.forEach(timestamp => {
+            const option = document.createElement('option');
+            option.value = timestamp;
+            option.text = formatTimestamp(timestamp);
+            option.selected = timestamp === currentTimestamp;
+            select.appendChild(option);
+        });
+    }
+}
+
+// Formater l'horodatage pour l'affichage
+function formatTimestamp(timestamp) {
+    try {
+        const date = new Date(timestamp);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        
+        return `${day}/${month} ${hours}h${minutes}`;
+    } catch (e) {
+        return timestamp;
+    }
+}
+
+// Afficher les données GeoJSON
+function displayGeoJSON(geoJsonData) {
+    if (geojsonLayer) {
+        map.removeLayer(geojsonLayer);
+    }
+    
+    geojsonLayer = L.geoJSON(geoJsonData, {
+        style: styleFeature,
+        onEachFeature: onEachFeature
+    }).addTo(map);
+    
+    // Mettre à jour la légende
+    map.removeControl(legend);
+    addLegend();
+}
+
+// Définir le style pour chaque département
+function styleFeature(feature) {
+    const deptCode = feature.properties.code;
+    const deptData = departmentsData[deptCode];
+    
+    let riskValue = 0;
+    if (deptData && deptData[currentRiskType] !== undefined) {
+        riskValue = parseFloat(deptData[currentRiskType]);
+    }
+    
+    return {
+        fillColor: getColor(riskValue),
+        weight: 1,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7
+    };
+}
+
+// Obtenir la couleur en fonction du niveau de risque
+function getColor(value) {
+    return value > 90 ? '#b10026' :
+           value > 70 ? '#d73027' :
+           value > 50 ? '#fc8d59' :
+           value > 30 ? '#fee08b' :
+           value > 10 ? '#d9ef8b' :
+                        '#91cf60';
+}
+
+// Gérer les événements pour chaque élément
+function onEachFeature(feature, layer) {
+    layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: zoomToFeature
+    });
+}
+
+// Mettre en évidence un département au survol
+function highlightFeature(e) {
+    const layer = e.target;
+    
+    layer.setStyle({
+        weight: 3,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.8
+    });
+    
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        layer.bringToFront();
+    }
+    
+    info.update(layer.feature.properties);
+}
+
+// Réinitialiser le style d'un département
+function resetHighlight(e) {
+    geojsonLayer.resetStyle(e.target);
+    info.update();
+}
+
+// Zoomer sur un département au clic
+function zoomToFeature(e) {
+    map.fitBounds(e.target.getBounds());
+}
+
+// Mettre à jour la carte lorsque les filtres changent
+function updateMap() {
+    const riskTypeSelect = document.getElementById('risk-type');
+    const timestampSelect = document.getElementById('timestamp-select');
+    
+    const newRiskType = riskTypeSelect.value;
+    const newTimestamp = timestampSelect.value;
+    
+    // Si le type de risque ou le timestamp a changé
+    if (newRiskType !== currentRiskType || newTimestamp !== currentTimestamp) {
+        currentRiskType = newRiskType;
+        currentTimestamp = newTimestamp;
+        
+        // Afficher l'indicateur de chargement
+        document.getElementById('loading').style.display = 'block';
+        
+        // Si on utilise des données réelles, recharger les données
+        if (usingRealData) {
+            fetch(`/api/map-data?risk_type=${currentRiskType}${currentTimestamp !== 'latest' ? '&timestamp=' + currentTimestamp : ''}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Stocker les données
+                    departmentsData = {};
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(dept => {
+                            departmentsData[dept.department_code] = dept;
+                        });
+                    }
+                    
+                    // Mettre à jour la carte
+                    if (geojsonLayer) {
+                        geojsonLayer.setStyle(styleFeature);
+                        map.removeControl(legend);
+                        addLegend();
+                    }
+                    
+                    document.getElementById('loading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la mise à jour des données:', error);
+                    document.getElementById('loading').style.display = 'none';
+                });
+        } else {
+            // Si on utilise des données factices, simplement mettre à jour la carte
+            if (geojsonLayer) {
+                geojsonLayer.setStyle(styleFeature);
+                map.removeControl(legend);
+                addLegend();
+            }
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+}
+
+// Initialiser la carte au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    
+    // Ajouter des écouteurs d'événements pour les contrôles
+    document.getElementById('risk-type').addEventListener('change', updateMap);
+    document.getElementById('timestamp-select').addEventListener('change', updateMap);
+});
+</script>
+{% endblock %}
