@@ -6,6 +6,6 @@
   },
   "server": {
     "port": 80,
-    "debug": false
+    "debug": true
   }
 }
